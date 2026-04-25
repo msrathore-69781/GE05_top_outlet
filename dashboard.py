@@ -64,15 +64,28 @@ def load_data(path="Dashboard_Backend.xlsx"):
         "WDSM Claim":           pd.to_numeric(df.iloc[:, 16], errors="coerce").fillna(0),
     })
 
-    out = out[~out["WD Name"].isin(["", "nan", "NaN"])]
-    out = out[~out["Retailer Code"].isin(["", "nan", "NaN"])]
+    out = out[~out["WD Name"].isin(["", "nan", "NaN"])].reset_index(drop=True)
+    out = out[~out["Retailer Code"].isin(["", "nan", "NaN"])].reset_index(drop=True)
     return out
 
 
+# ── Load with full error visibility ──────────────────────────────────────────
+df = None
 try:
     df = load_data()
 except FileNotFoundError:
-    st.error("Dashboard_Backend.xlsx not found. Place it in the same folder as this script.")
+    st.error("❌ `Dashboard_Backend.xlsx` not found. Make sure it is committed to your GitHub repo.")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ Failed to load data: {e}")
+    st.stop()
+
+if df is None or df.empty:
+    st.error("❌ Data loaded but is empty. Check that Dashboard_Backend.xlsx has data rows.")
+    st.stop()
+
+if "WD Name" not in df.columns:
+    st.error(f"❌ 'WD Name' column missing. Columns found: {list(df.columns)}")
     st.stop()
 
 
@@ -86,7 +99,7 @@ st.divider()
 
 
 # ── WD Selector ───────────────────────────────────────────────────────────────
-wd_names = sorted(df["WD Name"].unique())
+wd_names = sorted(df["WD Name"].unique().tolist())
 selected_wd = st.selectbox("Select WD", wd_names)
 wdf = df[df["WD Name"] == selected_wd].copy().reset_index(drop=True)
 st.caption(f"{len(wdf)} retailers under **{selected_wd}**")
@@ -110,11 +123,11 @@ def kpi_card(col, label, value, sub, accent):
     </div>""", unsafe_allow_html=True)
 
 k1, k2, k3, k4, k5 = st.columns(5)
-kpi_card(k1, "Total Retailers",      str(total_retailers), "under selected WD",          "#3B7DD8")
-kpi_card(k2, "Range Selling Reward", str(got_range),       "retailers qualified",         "#0E9E74")
-kpi_card(k3, "T.O. Reward",          str(got_to),          "retailers qualified",         "#7B5EA7")
-kpi_card(k4, "Both Rewards",         str(got_both),        "got range + T.O. both",      "#E07B1A")
-kpi_card(k5, "No Reward",            str(got_none),        "retailers not qualified",     "#C5D0E0")
+kpi_card(k1, "Total Retailers",      str(total_retailers), "under selected WD",       "#3B7DD8")
+kpi_card(k2, "Range Selling Reward", str(got_range),       "retailers qualified",      "#0E9E74")
+kpi_card(k3, "T.O. Reward",          str(got_to),          "retailers qualified",      "#7B5EA7")
+kpi_card(k4, "Both Rewards",         str(got_both),        "got range + T.O. both",   "#E07B1A")
+kpi_card(k5, "No Reward",            str(got_none),        "retailers not qualified",  "#C5D0E0")
 
 
 # ── Formatters ────────────────────────────────────────────────────────────────
@@ -133,13 +146,13 @@ t1 = wdf[["Retailer Code", "Retailer Name",
            "Avg SKU Count", "SKU Remaining Target",
            "TO Base", "TO Achieved"]].copy()
 
-t1["SKU Base"]              = t1["SKU Base"].apply(fmt_num)
-t1["Distt. SKU CM"]         = t1["Distt. SKU CM"].apply(fmt_num)
-t1["Distt. SKU CM >6EA"]    = t1["Distt. SKU CM >6EA"].apply(fmt_num)
-t1["Avg SKU Count"]         = t1["Avg SKU Count"].apply(fmt_num)
-t1["SKU Remaining Target"]  = t1["SKU Remaining Target"].apply(fmt_num)
-t1["TO Base"]               = t1["TO Base"].apply(fmt_inr)
-t1["TO Achieved"]           = t1["TO Achieved"].apply(fmt_inr)
+t1["SKU Base"]             = t1["SKU Base"].apply(fmt_num)
+t1["Distt. SKU CM"]        = t1["Distt. SKU CM"].apply(fmt_num)
+t1["Distt. SKU CM >6EA"]   = t1["Distt. SKU CM >6EA"].apply(fmt_num)
+t1["Avg SKU Count"]        = t1["Avg SKU Count"].apply(fmt_num)
+t1["SKU Remaining Target"] = t1["SKU Remaining Target"].apply(fmt_num)
+t1["TO Base"]              = t1["TO Base"].apply(fmt_inr)
+t1["TO Achieved"]          = t1["TO Achieved"].apply(fmt_inr)
 
 t1 = t1.rename(columns={
     "Retailer Code":        "Code",
