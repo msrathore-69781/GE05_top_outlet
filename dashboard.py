@@ -35,57 +35,52 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data(path="Dashboard_Backend.xlsx"):
-    df = pd.read_excel(path, engine="openpyxl")
+    raw = pd.read_excel(path, engine="openpyxl")
+
+    # Drop rows where WD Name (col 1) or Retailer Code (col 2) is NaN BEFORE any conversion
+    raw = raw.dropna(subset=[raw.columns[1], raw.columns[2]]).reset_index(drop=True)
 
     # Column indexes (0-based):
-    # [0] WD Code        [1] WD Name         [2] Retailer Code   [3] Retailer Name
-    # [4] FFR            [5] SKU Base         [6] Distt. SKU CM   [7] Distt. SKU CM >6EA
-    # [8] Avg SKU Count  [9] SKU Remaining    [10] TO Base        [11] T.O. Achieved
-    # [12] Avg TO        [13] TO Remaining    [14] Range Reward   [15] T.O. Reward (x1000)
-    # [16] WDSM Claim
+    # [0] WD Code  [1] WD Name  [2] Retailer Code  [3] Retailer Name  [4] FFR
+    # [5] SKU Base  [6] Distt. SKU CM  [7] Distt. SKU CM >6EA
+    # [8] Avg SKU Count  [9] SKU Remaining Target
+    # [10] TO Base  [11] T.O. Achieved  [12] Avg TO  [13] TO Remaining Target
+    # [14] Range Selling Reward  [15] T.O. Reward (stored x1000)  [16] WDSM Claim
 
     out = pd.DataFrame({
-        "WD Name":              df.iloc[:, 1].astype(str).str.strip(),
-        "Retailer Code":        df.iloc[:, 2].astype(str).str.strip(),
-        "Retailer Name":        df.iloc[:, 3].astype(str).str.strip(),
-        "FFR":                  df.iloc[:, 4].astype(str).str.strip(),
-        "SKU Base":             pd.to_numeric(df.iloc[:, 5],  errors="coerce").fillna(0),
-        "Distt. SKU CM":        pd.to_numeric(df.iloc[:, 6],  errors="coerce").fillna(0),
-        "Distt. SKU CM >6EA":   pd.to_numeric(df.iloc[:, 7],  errors="coerce").fillna(0),
-        "Avg SKU Count":        pd.to_numeric(df.iloc[:, 8],  errors="coerce").fillna(0),
-        "SKU Remaining Target": pd.to_numeric(df.iloc[:, 9],  errors="coerce").fillna(0),
-        "TO Base":              pd.to_numeric(df.iloc[:, 10], errors="coerce").fillna(0) * 1000,
-        "TO Achieved":          pd.to_numeric(df.iloc[:, 11], errors="coerce").fillna(0) * 1000,
-        "Range Reward":         pd.to_numeric(df.iloc[:, 14], errors="coerce").fillna(0),
-        "TO Reward":            pd.to_numeric(df.iloc[:, 15], errors="coerce").fillna(0) * 1000,
-        "WDSM Claim":           pd.to_numeric(df.iloc[:, 16], errors="coerce").fillna(0),
+        "WD Name":              raw.iloc[:, 1].astype(str).str.strip(),
+        "Retailer Code":        raw.iloc[:, 2].astype(str).str.strip(),
+        "Retailer Name":        raw.iloc[:, 3].astype(str).str.strip(),
+        "FFR":                  raw.iloc[:, 4].astype(str).str.strip(),
+        "SKU Base":             pd.to_numeric(raw.iloc[:, 5],  errors="coerce").fillna(0),
+        "Distt. SKU CM":        pd.to_numeric(raw.iloc[:, 6],  errors="coerce").fillna(0),
+        "Distt. SKU CM >6EA":   pd.to_numeric(raw.iloc[:, 7],  errors="coerce").fillna(0),
+        "Avg SKU Count":        pd.to_numeric(raw.iloc[:, 8],  errors="coerce").fillna(0),
+        "SKU Remaining Target": pd.to_numeric(raw.iloc[:, 9],  errors="coerce").fillna(0),
+        "TO Base":              pd.to_numeric(raw.iloc[:, 10], errors="coerce").fillna(0) * 1000,
+        "TO Achieved":          pd.to_numeric(raw.iloc[:, 11], errors="coerce").fillna(0) * 1000,
+        "Range Reward":         pd.to_numeric(raw.iloc[:, 14], errors="coerce").fillna(0),
+        "TO Reward":            pd.to_numeric(raw.iloc[:, 15], errors="coerce").fillna(0) * 1000,
+        "WDSM Claim":           pd.to_numeric(raw.iloc[:, 16], errors="coerce").fillna(0),
     })
 
-    out = out[~out["WD Name"].isin(["", "nan", "NaN"])].reset_index(drop=True)
-    out = out[~out["Retailer Code"].isin(["", "nan", "NaN"])].reset_index(drop=True)
     return out
 
 
-# ── Load with full error visibility ──────────────────────────────────────────
-df = None
+# ── Load ──────────────────────────────────────────────────────────────────────
 try:
     df = load_data()
 except FileNotFoundError:
-    st.error("❌ `Dashboard_Backend.xlsx` not found. Make sure it is committed to your GitHub repo.")
+    st.error("❌ Dashboard_Backend.xlsx not found. Make sure it is committed to your GitHub repo.")
     st.stop()
 except Exception as e:
     st.error(f"❌ Failed to load data: {e}")
     st.stop()
 
 if df is None or df.empty:
-    st.error("❌ Data loaded but is empty. Check that Dashboard_Backend.xlsx has data rows.")
-    st.stop()
-
-if "WD Name" not in df.columns:
-    st.error(f"❌ 'WD Name' column missing. Columns found: {list(df.columns)}")
+    st.error("❌ No data found in Dashboard_Backend.xlsx.")
     st.stop()
 
 
@@ -99,7 +94,7 @@ st.divider()
 
 
 # ── WD Selector ───────────────────────────────────────────────────────────────
-wd_names = sorted(df["WD Name"].unique().tolist())
+wd_names = sorted(df["WD Name"].dropna().unique().tolist())
 selected_wd = st.selectbox("Select WD", wd_names)
 wdf = df[df["WD Name"] == selected_wd].copy().reset_index(drop=True)
 st.caption(f"{len(wdf)} retailers under **{selected_wd}**")
@@ -109,10 +104,10 @@ st.caption(f"{len(wdf)} retailers under **{selected_wd}**")
 st.markdown('<div class="section-title">Summary</div>', unsafe_allow_html=True)
 
 total_retailers = len(wdf)
-got_range       = int((wdf["Range Reward"] > 0).sum())
-got_to          = int((wdf["TO Reward"] > 0).sum())
-got_both        = int(((wdf["Range Reward"] > 0) & (wdf["TO Reward"] > 0)).sum())
-got_none        = int(((wdf["Range Reward"] == 0) & (wdf["TO Reward"] == 0)).sum())
+got_range = int((wdf["Range Reward"] > 0).sum())
+got_to    = int((wdf["TO Reward"] > 0).sum())
+got_both  = int(((wdf["Range Reward"] > 0) & (wdf["TO Reward"] > 0)).sum())
+got_none  = int(((wdf["Range Reward"] == 0) & (wdf["TO Reward"] == 0)).sum())
 
 def kpi_card(col, label, value, sub, accent):
     col.markdown(f"""
@@ -123,11 +118,11 @@ def kpi_card(col, label, value, sub, accent):
     </div>""", unsafe_allow_html=True)
 
 k1, k2, k3, k4, k5 = st.columns(5)
-kpi_card(k1, "Total Retailers",      str(total_retailers), "under selected WD",       "#3B7DD8")
-kpi_card(k2, "Range Selling Reward", str(got_range),       "retailers qualified",      "#0E9E74")
-kpi_card(k3, "T.O. Reward",          str(got_to),          "retailers qualified",      "#7B5EA7")
-kpi_card(k4, "Both Rewards",         str(got_both),        "got range + T.O. both",   "#E07B1A")
-kpi_card(k5, "No Reward",            str(got_none),        "retailers not qualified",  "#C5D0E0")
+kpi_card(k1, "Total Retailers",      str(total_retailers), "under selected WD",      "#3B7DD8")
+kpi_card(k2, "Range Selling Reward", str(got_range),       "retailers qualified",     "#0E9E74")
+kpi_card(k3, "T.O. Reward",          str(got_to),          "retailers qualified",     "#7B5EA7")
+kpi_card(k4, "Both Rewards",         str(got_both),        "got range + T.O. both",  "#E07B1A")
+kpi_card(k5, "No Reward",            str(got_none),        "retailers not qualified", "#C5D0E0")
 
 
 # ── Formatters ────────────────────────────────────────────────────────────────
