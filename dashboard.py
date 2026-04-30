@@ -39,15 +39,17 @@ st.markdown("""
 def load_data(path="Dashboard_Backend.xlsx"):
     raw = pd.read_excel(path, engine="openpyxl")
 
-    # Drop rows where WD Name (col 1) or Retailer Code (col 2) is NaN BEFORE any conversion
+    # Drop rows where WD Name (col 1) or Retailer Code (col 2) is NaN
     raw = raw.dropna(subset=[raw.columns[1], raw.columns[2]]).reset_index(drop=True)
 
-    # Column indexes (0-based):
-    # [0] WD Code  [1] WD Name  [2] Retailer Code  [3] Retailer Name  [4] FFR
-    # [5] SKU Base  [6] Distt. SKU CM  [7] Distt. SKU CM >6EA
-    # [8] Avg SKU Count  [9] SKU Remaining Target
-    # [10] TO Base  [11] T.O. Achieved  [12] Avg TO  [13] TO Remaining Target
-    # [14] Range Selling Reward  [15] T.O. Reward (stored x1000)  [16] WDSM Claim
+    # Column indexes (0-based) after Claim_calculation.py update:
+    # [0]  WD Code            [1]  WD Name           [2]  Retailer Code
+    # [3]  Retailer Name      [4]  FFR
+    # [5]  SKU Base           [6]  Distt. SKU CM      [7]  Distt. SKU CM >6EA
+    # [8]  Avg SKU Count      [9]  SKU Remaining Target
+    # [10] TO Base            [11] T.O. Achieved      [12] Avg TO
+    # [13] % TO Achievement   [14] TO Remaining Target
+    # [15] Range Selling Reward  [16] T.O. Reward     [17] WDSM Claim
 
     out = pd.DataFrame({
         "WD Name":              raw.iloc[:, 1].astype(str).str.strip(),
@@ -59,17 +61,19 @@ def load_data(path="Dashboard_Backend.xlsx"):
         "Distt. SKU CM >6EA":   pd.to_numeric(raw.iloc[:, 7],  errors="coerce").fillna(0),
         "Avg SKU Count":        pd.to_numeric(raw.iloc[:, 8],  errors="coerce").fillna(0),
         "SKU Remaining Target": pd.to_numeric(raw.iloc[:, 9],  errors="coerce").fillna(0),
-        "TO Base":              pd.to_numeric(raw.iloc[:, 10], errors="coerce").fillna(0) * 1000,
-        "TO Achieved":          pd.to_numeric(raw.iloc[:, 11], errors="coerce").fillna(0) * 1000,
-        "Range Reward":         pd.to_numeric(raw.iloc[:, 14], errors="coerce").fillna(0),
-        "TO Reward":            pd.to_numeric(raw.iloc[:, 15], errors="coerce").fillna(0) * 1000,
-        "WDSM Claim":           pd.to_numeric(raw.iloc[:, 16], errors="coerce").fillna(0),
+        "TO Base":              pd.to_numeric(raw.iloc[:, 10], errors="coerce").fillna(0),
+        "TO Achieved":          pd.to_numeric(raw.iloc[:, 11], errors="coerce").fillna(0),
+        "Avg TO":               pd.to_numeric(raw.iloc[:, 12], errors="coerce").fillna(0),
+        "% TO Achievement":     pd.to_numeric(raw.iloc[:, 13], errors="coerce").fillna(0),
+        "TO Remaining Target":  pd.to_numeric(raw.iloc[:, 14], errors="coerce").fillna(0),
+        "Range Reward":         pd.to_numeric(raw.iloc[:, 15], errors="coerce").fillna(0),
+        "TO Reward":            pd.to_numeric(raw.iloc[:, 16], errors="coerce").fillna(0) * 1000,
+        "WDSM Claim":           pd.to_numeric(raw.iloc[:, 17], errors="coerce").fillna(0),
     })
 
     return out
 
 
-# ── Load ──────────────────────────────────────────────────────────────────────
 try:
     df = load_data()
 except FileNotFoundError:
@@ -132,20 +136,19 @@ def fmt_inr(n):
 def fmt_num(n):
     return f"{int(n):,}" if n != 0 else "—"
 
+def fmt_pct(n):
+    return f"{n:.1f}%" if n != 0 else "—"
+
 
 # ── Table 1: SKU + TO Performance ────────────────────────────────────────────
 st.markdown('<div class="section-title">Table 1 — SKU & T.O. Performance</div>', unsafe_allow_html=True)
 
-t1 = wdf[["Retailer Code", "Retailer Name",
-           "SKU Base", "Distt. SKU CM", "Distt. SKU CM >6EA",
-           "Avg SKU Count", "SKU Remaining Target",
-           "TO Base", "TO Achieved"]].copy()
-
-# Calculate % TO Achievement before formatting
-t1["% TO Achievement"] = t1.apply(
-    lambda r: f"{(r['TO Achieved'] / r['TO Base'] * 100):.1f}%" if r["TO Base"] != 0 else "—",
-    axis=1
-)
+t1 = wdf[[
+    "Retailer Code", "Retailer Name",
+    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >6EA",
+    "Avg SKU Count", "SKU Remaining Target",
+    "TO Base", "TO Achieved", "Avg TO", "% TO Achievement"
+]].copy()
 
 t1["SKU Base"]             = t1["SKU Base"].apply(fmt_num)
 t1["Distt. SKU CM"]        = t1["Distt. SKU CM"].apply(fmt_num)
@@ -154,6 +157,8 @@ t1["Avg SKU Count"]        = t1["Avg SKU Count"].apply(fmt_num)
 t1["SKU Remaining Target"] = t1["SKU Remaining Target"].apply(fmt_num)
 t1["TO Base"]              = t1["TO Base"].apply(fmt_inr)
 t1["TO Achieved"]          = t1["TO Achieved"].apply(fmt_inr)
+t1["Avg TO"]               = t1["Avg TO"].apply(fmt_inr)
+t1["% TO Achievement"]     = t1["% TO Achievement"].apply(fmt_pct)
 
 t1 = t1.rename(columns={
     "Retailer Code":        "Code",
@@ -169,8 +174,10 @@ st.dataframe(t1, use_container_width=True, hide_index=True,
 # ── Table 2: Retailer Rewards ─────────────────────────────────────────────────
 st.markdown('<div class="section-title">Table 2 — Retailer Rewards</div>', unsafe_allow_html=True)
 
-t2 = wdf[["Retailer Code", "Retailer Name",
-           "TO Reward", "Range Reward", "WDSM Claim"]].copy()
+t2 = wdf[[
+    "Retailer Code", "Retailer Name",
+    "TO Reward", "Range Reward", "WDSM Claim"
+]].copy()
 
 t2["TO Reward"]    = t2["TO Reward"].apply(fmt_inr)
 t2["Range Reward"] = t2["Range Reward"].apply(fmt_inr)
