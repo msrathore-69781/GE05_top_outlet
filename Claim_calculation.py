@@ -53,7 +53,7 @@ df["% TO Achievement"] = df.apply(
 )
 
 def range_selling_reward(row):
-    if row["Distt. SKU CM >6EA"] <= 6:
+    if row["Distt. SKU CM >6EA"] <= 8:
         return 0
     p = row["Distt. SKU CM >6EA"] - row["Average SKU Count"]
     if p >= 20:   return 2000
