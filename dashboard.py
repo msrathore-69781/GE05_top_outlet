@@ -141,6 +141,12 @@ t1 = wdf[["Retailer Code", "Retailer Name",
            "Avg SKU Count", "SKU Remaining Target",
            "TO Base", "TO Achieved"]].copy()
 
+# Calculate % TO Achievement before formatting
+t1["% TO Achievement"] = t1.apply(
+    lambda r: f"{(r['TO Achieved'] / r['TO Base'] * 100):.1f}%" if r["TO Base"] != 0 else "—",
+    axis=1
+)
+
 t1["SKU Base"]             = t1["SKU Base"].apply(fmt_num)
 t1["Distt. SKU CM"]        = t1["Distt. SKU CM"].apply(fmt_num)
 t1["Distt. SKU CM >6EA"]   = t1["Distt. SKU CM >6EA"].apply(fmt_num)
@@ -153,6 +159,7 @@ t1 = t1.rename(columns={
     "Retailer Code":        "Code",
     "Retailer Name":        "Retailer",
     "SKU Remaining Target": "SKU Remaining",
+    "% TO Achievement":     "% TO Achievement",
 })
 
 st.dataframe(t1, use_container_width=True, hide_index=True,
