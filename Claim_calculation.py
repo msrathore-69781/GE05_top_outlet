@@ -26,8 +26,8 @@ metrics["SKU Base"] = grp.apply(
 metrics["Distt. SKU CM"] = grp.apply(
     lambda x: x.loc[x[COL_SALES_QTY_CM].notna(), COL_MATERIAL_CODE].nunique()
 )
-metrics["Distt. SKU CM >6EA"] = grp.apply(
-    lambda x: x.loc[x[COL_SALES_QTY_CM] > 6, COL_MATERIAL_CODE].nunique()
+metrics["Distt. SKU CM >3EA"] = grp.apply(
+    lambda x: x.loc[x[COL_SALES_QTY_CM] > 3, COL_MATERIAL_CODE].nunique()
 )
 metrics["TO Base"]       = grp[COL_TO_BASE].sum()
 metrics["T.O. Achieved"] = grp[COL_TO_ACHIEVED].sum()
@@ -43,7 +43,7 @@ summary_cols = retailer_summary[[
 df = metrics.merge(summary_cols, on="Retailer Code", how="left")
 
 # ── 4. Derived columns ────────────────────────────────────────────────────────
-df["SKU Remaining Target"] = (20 + df["Average SKU Count"]) - df["Distt. SKU CM >6EA"]
+df["SKU Remaining Target"] = (20 + df["Average SKU Count"]) - df[df["Distt. SKU CM >3EA"] >= 9]["Distt. SKU CM >3EA"].reindex(df.index, fill_value=0)
 df["TO Remaining Target"]  = (1.2 * df["Average TO"]) - df["T.O. Achieved"]
 
 # % TO Achievement = T.O. Achieved / Average TO * 100
@@ -53,9 +53,9 @@ df["% TO Achievement"] = df.apply(
 )
 
 def range_selling_reward(row):
-    if row["Distt. SKU CM >6EA"] <= 8:
+    if row["Distt. SKU CM >3EA"] <= 8:
         return 0
-    p = row["Distt. SKU CM >6EA"] - row["Average SKU Count"]
+    p = row["Distt. SKU CM >3EA"] - row["Average SKU Count"]
     if p >= 20:   return 2000
     elif p >= 15: return 1500
     elif p >= 10: return 1000
@@ -83,15 +83,9 @@ df["T.O. Reward"]          = df.apply(to_reward, axis=1)
 df["WDSM Claim"]           = df.apply(wdsm_claim, axis=1)
 
 # ── 5. Final column order ─────────────────────────────────────────────────────
-# [0]  WD Code          [1]  WD Name         [2]  Retailer Code   [3]  Retailer Name
-# [4]  FFR              [5]  SKU Base         [6]  Distt. SKU CM   [7]  Distt. SKU CM >6EA
-# [8]  Avg SKU Count    [9]  SKU Remaining    [10] TO Base         [11] T.O. Achieved
-# [12] Avg TO           [13] % TO Achievement [14] TO Remaining   [15] Range Selling Reward
-# [16] T.O. Reward      [17] WDSM Claim
-
 final_cols = [
     "wd_code", "wd", "Retailer Code", "ret_name", "ffr",
-    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >6EA",
+    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >3EA", 
     "Average SKU Count", "SKU Remaining Target",
     "TO Base", "T.O. Achieved", "Average TO", "% TO Achievement",
     "TO Remaining Target",
@@ -106,7 +100,7 @@ ws.title = "Dashboard Backend"
 
 HEADERS = [
     "WD Code", "WD Name", "Retailer Code", "Retailer Name", "FFR",
-    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >6EA",
+    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >3EA",
     "Avg SKU Count", "SKU Remaining Target",
     "TO Base", "T.O. Achieved", "Avg TO", "% TO Achievement",
     "TO Remaining Target",
