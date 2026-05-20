@@ -45,7 +45,7 @@ def load_data(path="Dashboard_Backend.xlsx"):
     # Column indexes (0-based) after Claim_calculation.py update:
     # [0]  WD Code            [1]  WD Name           [2]  Retailer Code
     # [3]  Retailer Name      [4]  FFR
-    # [5]  SKU Base           [6]  Distt. SKU CM      [7]  Distt. SKU CM >6EA
+    # [5]  SKU Base           [6]  Distt. SKU CM      [7]  Distt. SKU CM >3EA
     # [8]  Avg SKU Count      [9]  SKU Remaining Target
     # [10] TO Base            [11] T.O. Achieved      [12] Avg TO
     # [13] % TO Achievement   [14] TO Remaining Target
@@ -58,7 +58,7 @@ def load_data(path="Dashboard_Backend.xlsx"):
         "FFR":                  raw.iloc[:, 4].astype(str).str.strip(),
         "SKU Base":             pd.to_numeric(raw.iloc[:, 5],  errors="coerce").fillna(0),
         "Distt. SKU CM":        pd.to_numeric(raw.iloc[:, 6],  errors="coerce").fillna(0),
-        "Distt. SKU CM >6EA":   pd.to_numeric(raw.iloc[:, 7],  errors="coerce").fillna(0),
+        "Distt. SKU CM >3EA":   pd.to_numeric(raw.iloc[:, 7],  errors="coerce").fillna(0),
         "Avg SKU Count":        pd.to_numeric(raw.iloc[:, 8],  errors="coerce").fillna(0),
         "SKU Remaining Target": pd.to_numeric(raw.iloc[:, 9],  errors="coerce").fillna(0),
         "TO Base":              pd.to_numeric(raw.iloc[:, 10], errors="coerce").fillna(0),
@@ -145,14 +145,14 @@ st.markdown('<div class="section-title">Table 1 — SKU & T.O. Performance</div>
 
 t1 = wdf[[
     "Retailer Code", "Retailer Name",
-    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >6EA",
+    "SKU Base", "Distt. SKU CM", "Distt. SKU CM >3EA",
     "Avg SKU Count", "SKU Remaining Target",
     "TO Base", "TO Achieved", "Avg TO", "% TO Achievement"
 ]].copy()
 
 t1["SKU Base"]             = t1["SKU Base"].apply(fmt_num)
 t1["Distt. SKU CM"]        = t1["Distt. SKU CM"].apply(fmt_num)
-t1["Distt. SKU CM >6EA"]   = t1["Distt. SKU CM >6EA"].apply(fmt_num)
+t1["Distt. SKU CM >3EA"]   = t1["Distt. SKU CM >3EA"].apply(fmt_num)
 t1["Avg SKU Count"]        = t1["Avg SKU Count"].apply(fmt_num)
 t1["SKU Remaining Target"] = t1["SKU Remaining Target"].apply(fmt_num)
 t1["TO Base"]              = t1["TO Base"].apply(fmt_inr)
